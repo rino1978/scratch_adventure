@@ -1,0 +1,1608 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scratch Adventure: Petualangan ROBO</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js for 3D Graphics -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Canvas Confetti for Victory Effects -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Fredoka & Plus Jakarta Sans for Pixar feel -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow: hidden;
+            background-color: #0f172a;
+        }
+
+        .font-display {
+            font-family: 'Fredoka', cursive, sans-serif;
+        }
+
+        /* Scratch Block Colors & Styles */
+        .block-event { background: linear-gradient(135deg, #ffd119, #e6b800); border-color: #c69c00; color: #3d2b00; }
+        .block-motion { background: linear-gradient(135deg, #4c97ff, #3373cc); border-color: #285bb8; color: #ffffff; }
+        .block-looks { background: linear-gradient(135deg, #9966ff, #7733ff); border-color: #5900cc; color: #ffffff; }
+        .block-sound { background: linear-gradient(135deg, #cf63cf, #b336b3); border-color: #8c1a8c; color: #ffffff; }
+        .block-control { background: linear-gradient(135deg, #ffab19, #e68a00); border-color: #cc7000; color: #ffffff; }
+
+        .scratch-block {
+            border-radius: 12px;
+            border-left: 10px solid rgba(0,0,0,0.25);
+            box-shadow: 0 6px 0 rgba(0,0,0,0.2), inset 0 2px 0 rgba(255,255,255,0.4);
+            transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+            position: relative;
+        }
+
+        .scratch-block:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 10px 0 rgba(0,0,0,0.25), inset 0 2px 0 rgba(255,255,255,0.5);
+        }
+
+        .scratch-block:active {
+            transform: translateY(3px) scale(0.98);
+            box-shadow: 0 2px 0 rgba(0,0,0,0.2);
+        }
+
+        /* Glassmorphism Panel */
+        .pixar-panel {
+            background: rgba(255, 255, 255, 0.88);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 4px solid rgba(255, 255, 255, 0.9);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3), 0 0 20px rgba(255, 255, 255, 0.2);
+        }
+
+        /* Soft Glow effects */
+        .glow-blue { box-shadow: 0 0 25px rgba(59, 130, 246, 0.6); }
+        .glow-gold { box-shadow: 0 0 30px rgba(245, 158, 11, 0.7); }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: rgba(59,130,246,0.6); border-radius: 10px; }
+
+        @keyframes bounce-subtle {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+
+        .animate-bounce-subtle {
+            animation: bounce-subtle 2s infinite ease-in-out;
+        }
+
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.05); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+
+        .animate-pulse-ring {
+            animation: pulse-ring 2s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen relative overflow-hidden select-none bg-slate-900 text-slate-800">
+
+    <!-- 3D Canvas Viewport -->
+    <div id="canvas-container" class="absolute inset-0 w-full h-full z-0"></div>
+
+    <!-- GAME HUD OVERLAY -->
+    <div id="hud-layer" class="absolute inset-0 z-10 pointer-events-none flex flex-col justify-between p-4 md:p-6 hidden">
+        <!-- Top Navigation & Stats Bar -->
+        <div class="flex justify-between items-center w-full max-w-6xl mx-auto gap-4 pointer-events-auto">
+            <!-- Left: Lives & Score -->
+            <div class="flex items-center gap-3 bg-slate-900/80 backdrop-blur-md px-4 py-2.5 rounded-2xl border-2 border-white/20 text-white shadow-xl">
+                <!-- Hearts -->
+                <div id="lives-container" class="flex items-center gap-1.5 pr-3 border-r border-slate-700">
+                    <i class="fa-solid fa-heart text-red-500 text-xl drop-shadow"></i>
+                    <i class="fa-solid fa-heart text-red-500 text-xl drop-shadow"></i>
+                    <i class="fa-solid fa-heart text-red-500 text-xl drop-shadow"></i>
+                </div>
+                <!-- Score -->
+                <div class="flex items-center gap-2 pl-1 font-display">
+                    <i class="fa-solid fa-star text-amber-400 text-xl animate-spin-slow"></i>
+                    <span class="text-xs text-slate-400 uppercase tracking-wider font-bold">Skor:</span>
+                    <span id="hud-score" class="text-2xl font-bold text-amber-300">0</span>
+                </div>
+            </div>
+
+            <!-- Center: Area Info Badge -->
+            <div class="hidden sm:flex flex-col items-center bg-slate-900/80 backdrop-blur-md px-6 py-2 rounded-2xl border-2 border-white/20 text-white shadow-xl">
+                <span id="hud-area-title" class="font-display text-lg font-bold text-sky-400">AREA 1 — CODE FOREST</span>
+                <span id="hud-mission-counter" class="text-xs font-semibold text-slate-300">Soal <span id="current-q-num">1</span> dari 5</span>
+            </div>
+
+            <!-- Right: Controls & Sound Toggle -->
+            <div class="flex items-center gap-2">
+                <button id="btn-sound" onclick="toggleAudio()" class="bg-slate-900/80 hover:bg-slate-800 backdrop-blur-md w-12 h-12 rounded-2xl border-2 border-white/20 text-amber-400 flex items-center justify-center text-lg shadow-xl transition-transform active:scale-95">
+                    <i class="fa-solid fa-volume-high" id="sound-icon"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Bottom Progress Map Tracker -->
+        <div class="w-full max-w-4xl mx-auto pointer-events-auto bg-slate-900/85 backdrop-blur-md p-3 md:p-4 rounded-3xl border-2 border-white/20 text-white shadow-2xl">
+            <div class="flex justify-between items-center relative px-2">
+                <!-- Connecting Line -->
+                <div class="absolute left-6 right-6 top-1/2 -translate-y-1/2 h-2 bg-slate-800 rounded-full z-0">
+                    <div id="progress-fill" class="h-full bg-gradient-to-r from-sky-400 via-indigo-500 to-amber-400 rounded-full transition-all duration-700 w-0"></div>
+                </div>
+
+                <!-- Area Progress Nodes -->
+                <div id="progress-nodes" class="flex justify-between w-full relative z-10">
+                    <!-- Nodes injected dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN MENU OVERLAY -->
+    <div id="screen-start" class="absolute inset-0 z-30 flex items-center justify-center p-4 bg-gradient-to-b from-slate-950/70 via-sky-950/60 to-slate-950/80 backdrop-blur-sm">
+        <div class="pixar-panel max-w-xl w-full p-8 md:p-10 rounded-3xl text-center shadow-2xl border-4 border-sky-300/80 relative overflow-hidden">
+            <!-- Decorative Disney Pixar-style glowing elements -->
+            <div class="absolute -top-12 -right-12 w-36 h-36 bg-amber-400/30 rounded-full blur-2xl"></div>
+            <div class="absolute -bottom-12 -left-12 w-36 h-36 bg-sky-400/30 rounded-full blur-2xl"></div>
+
+            <div class="inline-flex items-center gap-2 bg-sky-100 border border-sky-300 text-sky-700 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest mb-4">
+                <i class="fa-solid fa-graduation-cap text-sky-500"></i> Informatika SMP Kelas 7 • Semester 1
+            </div>
+
+            <h1 class="font-display text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-sky-600 via-indigo-600 to-amber-500 mb-2 drop-shadow-sm">
+                SCRATCH ADVENTURE
+            </h1>
+            <p class="font-display text-xl md:text-2xl font-bold text-amber-500 mb-6">
+                ✨ PETUALANGAN ROBO ✨
+            </p>
+
+            <div class="bg-sky-50/80 rounded-2xl p-4 border border-sky-200 mb-6 text-left text-slate-600 text-sm leading-relaxed space-y-2">
+                <p class="font-semibold text-sky-900"><i class="fa-solid fa-compass text-amber-500 mr-2"></i>Misi Petualangan:</p>
+                <p>Bantu <strong>ROBO</strong> menjelajahi 8 Dunia Digital menuju Kastil Utama! Jawab tantangan pemrograman Scratch untuk membuka gerbang jalan.</p>
+            </div>
+
+            <!-- Player Name Form -->
+            <div class="space-y-4 mb-6">
+                <div class="text-left">
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Nama Pemain / Siswa:</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-user-astronaut absolute left-4 top-1/2 -translate-y-1/2 text-sky-500 text-lg"></i>
+                        <input type="text" id="player-name-input" placeholder="Masukkan nama kamu di sini..." 
+                            class="w-full pl-12 pr-4 py-3.5 bg-white rounded-2xl border-2 border-sky-200 focus:border-sky-500 focus:ring-4 focus:ring-sky-200 font-bold text-slate-800 text-base outline-none transition">
+                    </div>
+                </div>
+            </div>
+
+            <button id="btn-start-game" onclick="startGame()" class="w-full py-4 bg-gradient-to-r from-amber-400 via-amber-500 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-slate-900 font-display font-bold text-xl rounded-2xl shadow-lg hover:shadow-amber-500/30 transform hover:-translate-y-1 active:translate-y-0 transition duration-200 flex items-center justify-center gap-3 border-2 border-amber-200">
+                <span>MULAI PETUALANGAN!</span>
+                <i class="fa-solid fa-circle-play text-2xl"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- AREA INTRO MODAL -->
+    <div id="modal-area-intro" class="absolute inset-0 z-20 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md hidden">
+        <div class="pixar-panel max-w-lg w-full p-8 rounded-3xl text-center shadow-2xl border-4 border-amber-300 relative">
+            <div id="area-intro-badge" class="w-20 h-20 bg-amber-400/20 text-amber-600 rounded-3xl flex items-center justify-center mx-auto mb-4 text-4xl border-2 border-amber-300">
+                🌳
+            </div>
+            <h2 id="area-intro-title" class="font-display text-3xl font-extrabold text-sky-900 mb-1">AREA 1: CODE FOREST</h2>
+            <p id="area-intro-topic" class="text-amber-600 font-bold text-sm uppercase tracking-wider mb-4">Topik: Pengenalan Scratch & Sequence</p>
+            <p id="area-intro-desc" class="text-slate-600 text-sm md:text-base leading-relaxed mb-6 bg-white/70 p-4 rounded-2xl border border-slate-200">
+                ROBO memasuki hutan kode yang indah! Mari bantu ROBO menjawab 5 soal tantangan dasar Scratch untuk melewati rintangan hutan ini.
+            </p>
+            <button onclick="closeAreaIntro()" class="w-full py-3.5 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 text-white font-display font-bold text-lg rounded-2xl shadow-lg transition transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2">
+                <span>MULAI AREA INI</span>
+                <i class="fa-solid fa-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- QUIZ CHALLENGE MODAL -->
+    <div id="modal-quiz" class="absolute inset-0 z-20 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm hidden">
+        <div class="pixar-panel max-w-2xl w-full p-6 md:p-8 rounded-3xl shadow-2xl border-4 border-sky-400 relative overflow-hidden my-auto">
+            
+            <!-- Question Header Tag -->
+            <div class="flex justify-between items-center mb-4 border-b border-slate-200/80 pb-3">
+                <div class="flex items-center gap-2">
+                    <span class="bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1 rounded-full border border-amber-300 flex items-center gap-1">
+                        <i class="fa-solid fa-puzzle-piece"></i> <span id="quiz-area-tag">AREA 1</span>
+                    </span>
+                    <span class="text-slate-400 text-xs font-semibold">Tantangan Ke-<span id="quiz-step-num">1</span>/5</span>
+                </div>
+                <!-- Hint Button -->
+                <button id="btn-hint" onclick="useHint()" class="bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-300 text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition">
+                    <i class="fa-regular fa-lightbulb text-amber-600 text-sm"></i>
+                    <span>Petunjuk</span>
+                </button>
+            </div>
+
+            <!-- Hint Box (Hidden by default) -->
+            <div id="hint-box" class="hidden mb-4 p-3 bg-amber-50 border-2 border-amber-200 rounded-2xl text-amber-900 text-xs md:text-sm font-medium flex items-start gap-2.5">
+                <i class="fa-solid fa-circle-info text-amber-500 text-base shrink-0 mt-0.5"></i>
+                <div id="hint-text">Ini adalah petunjuk untuk membantu menjawab soal ini.</div>
+            </div>
+
+            <!-- Question Text -->
+            <h3 id="quiz-question-text" class="font-display text-lg md:text-xl font-bold text-slate-800 mb-6 leading-snug">
+                Blok apa yang digunakan untuk menjalankan perintah ketika bendera hijau diklik?
+            </h3>
+
+            <!-- Options Grid -->
+            <div id="quiz-options-container" class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+                <!-- Dynamically populated Scratch-styled option blocks -->
+            </div>
+
+            <!-- Feedback Alert Popup Banner (Inside Modal) -->
+            <div id="feedback-banner" class="hidden p-4 rounded-2xl border-2 mb-4 text-sm font-bold flex items-center gap-3">
+                <div id="feedback-icon" class="text-2xl shrink-0">🎉</div>
+                <div>
+                    <div id="feedback-title" class="font-display text-base font-bold">Jawaban Benar!</div>
+                    <div id="feedback-desc" class="font-normal text-xs md:text-sm opacity-90">Penjelasan singkat mengenai jawaban.</div>
+                </div>
+            </div>
+
+            <!-- Modal Action Buttons -->
+            <div class="flex justify-end gap-3 pt-2 border-t border-slate-200/80">
+                <button id="btn-submit-answer" onclick="submitAnswer()" class="w-full sm:w-auto px-8 py-3.5 bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-display font-bold text-base rounded-2xl shadow-lg transition transform active:scale-95 flex items-center justify-center gap-2">
+                    <span>JAWAB TANTANGAN</span>
+                    <i class="fa-solid fa-paper-plane"></i>
+                </button>
+                <button id="btn-next-question" onclick="nextQuestion()" class="hidden w-full sm:w-auto px-8 py-3.5 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-display font-bold text-base rounded-2xl shadow-lg transition transform active:scale-95 flex items-center justify-center gap-2">
+                    <span>LANJUTKAN PERJALANAN</span>
+                    <i class="fa-solid fa-circle-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- GAME OVER / TRY AGAIN MODAL -->
+    <div id="modal-gameover" class="absolute inset-0 z-40 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md hidden">
+        <div class="pixar-panel max-w-md w-full p-8 rounded-3xl text-center shadow-2xl border-4 border-red-400">
+            <div class="w-20 h-20 bg-red-100 text-red-500 rounded-3xl flex items-center justify-center mx-auto mb-4 text-4xl border-2 border-red-300">
+                😅
+            </div>
+            <h2 class="font-display text-3xl font-extrabold text-slate-800 mb-2">ROBO Butuh Bantuanmu!</h2>
+            <p class="text-slate-600 text-sm mb-6">
+                Nyawa ROBO habis. Jangan berkecil hati, belajar dari kesalahan adalah bagian dari pemrograman! Mari coba lagi.
+            </p>
+            <button onclick="retryCurrentArea()" class="w-full py-4 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-slate-900 font-display font-bold text-lg rounded-2xl shadow-lg transition transform active:scale-95 flex items-center justify-center gap-2">
+                <i class="fa-solid fa-rotate-right"></i>
+                <span>COBA LAGI</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- FINAL VICTORY SUMMARY SCREEN -->
+    <div id="screen-victory" class="absolute inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md hidden overflow-y-auto">
+        <div class="pixar-panel max-w-2xl w-full p-8 md:p-10 rounded-3xl text-center shadow-2xl border-4 border-amber-300 my-auto relative">
+            
+            <div class="inline-block bg-amber-100 text-amber-800 text-xs font-bold px-4 py-1.5 rounded-full border border-amber-300 mb-3">
+                🏆 PETUALANGAN SELESAI
+            </div>
+
+            <h1 class="font-display text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-400 mb-1">
+                SELAMAT!
+            </h1>
+            <p class="font-display text-lg text-sky-800 mb-6">
+                Kamu Berhasil Menyelesaikan Scratch Adventure!
+            </p>
+
+            <!-- Badge Display -->
+            <div class="bg-gradient-to-b from-amber-50 to-orange-50 p-6 rounded-3xl border-2 border-amber-200 mb-6 shadow-inner relative overflow-hidden">
+                <div class="w-24 h-24 bg-gradient-to-tr from-amber-400 to-yellow-300 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg border-4 border-white glow-gold animate-bounce-subtle">
+                    <i class="fa-solid fa-crown text-amber-800 text-4xl"></i>
+                </div>
+                <div class="font-display text-xl font-bold text-amber-900" id="victory-player-name">Pemain Handal</div>
+                <div class="text-xs font-bold uppercase tracking-widest text-amber-600 mt-1">Lencana Resmi:</div>
+                <div class="inline-flex items-center gap-2 mt-2 px-4 py-1.5 bg-amber-400 text-slate-900 font-bold rounded-xl text-sm shadow">
+                    <i class="fa-solid fa-award"></i> Scratch Adventure Champion
+                </div>
+            </div>
+
+            <!-- Performance Stats Grid -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6 text-left">
+                <div class="bg-white/80 p-3 rounded-2xl border border-slate-200">
+                    <div class="text-xs text-slate-400 font-bold uppercase">Total Skor</div>
+                    <div id="stat-score" class="font-display text-xl font-bold text-amber-500">0</div>
+                </div>
+                <div class="bg-white/80 p-3 rounded-2xl border border-slate-200">
+                    <div class="text-xs text-slate-400 font-bold uppercase">Jawaban Benar</div>
+                    <div id="stat-correct" class="font-display text-xl font-bold text-emerald-500">0</div>
+                </div>
+                <div class="bg-white/80 p-3 rounded-2xl border border-slate-200">
+                    <div class="text-xs text-slate-400 font-bold uppercase">Jawaban Salah</div>
+                    <div id="stat-wrong" class="font-display text-xl font-bold text-rose-500">0</div>
+                </div>
+                <div class="bg-white/80 p-3 rounded-2xl border border-slate-200">
+                    <div class="text-xs text-slate-400 font-bold uppercase">Petunjuk Dibuka</div>
+                    <div id="stat-hints" class="font-display text-xl font-bold text-sky-500">0</div>
+                </div>
+            </div>
+
+            <button onclick="restartFullGame()" class="w-full py-4 bg-gradient-to-r from-sky-500 via-indigo-600 to-purple-600 hover:from-sky-600 hover:to-purple-700 text-white font-display font-bold text-lg rounded-2xl shadow-xl transition transform active:scale-95 flex items-center justify-center gap-2">
+                <i class="fa-solid fa-rotate-right"></i>
+                <span>MAIN LAGI DARI AWAL</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        /* ==========================================================================
+           1. GAME STATE & QUESTION DATABASE (40 Questions Grade 7 Scratch)
+           ========================================================================== */
+        const GAME_STATE = {
+            playerName: "Siswa SMP",
+            currentAreaIndex: 0, // 0 to 7
+            currentQuestionIndex: 0, // 0 to 4 inside current area
+            score: 0,
+            lives: 3,
+            maxLives: 3,
+            selectedOptionIndex: null,
+            totalCorrectAnswers: 0,
+            totalWrongAnswers: 0,
+            totalHintsUsed: 0,
+            audioEnabled: true,
+            isMoving: false
+        };
+
+        // 8 Biome Definitions
+        const AREAS_DATA = [
+            { id: 1, name: "CODE FOREST", icon: "🌳", topic: "Pengenalan Scratch & Sequence", bgHex: 0x228b22, skyHex: 0x87ceeb },
+            { id: 2, name: "EVENT VILLAGE", icon: "🏡", topic: "Blok Kejadian (Events)", bgHex: 0x8be042, skyHex: 0x87ceeb },
+            { id: 3, name: "MOTION MOUNTAIN", icon: "⛰️", topic: "Gerakan Sprite (Motion)", bgHex: 0x808080, skyHex: 0xb0e0e6 },
+            { id: 4, name: "LOOKS VALLEY", icon: "🌈", topic: "Tampilan & Kostum (Looks)", bgHex: 0xda70d6, skyHex: 0xffe4e1 },
+            { id: 5, name: "SOUND LAKE", icon: "🌊", topic: "Musik & Suara (Sound)", bgHex: 0x20b2aa, skyHex: 0xe0ffff },
+            { id: 6, name: "LOOP FACTORY", icon: "⚙️", topic: "Perulangan (Control Loop)", bgHex: 0x708090, skyHex: 0xd3d3d3 },
+            { id: 7, name: "LOGIC CAVE", icon: "💎", topic: "Percabangan (If...Then)", bgHex: 0x4b0082, skyHex: 0x191970 },
+            { id: 8, name: "DIGITAL CASTLE", icon: "🏰", topic: "Ujian Akhir Komprehensif", bgHex: 0x4169e1, skyHex: 0x000033 }
+        ];
+
+        // 40 Comprehensive Questions (5 per Area)
+        const QUESTIONS_DB = {
+            0: [ // Area 1: Code Forest
+                {
+                    question: "Apa fungsi utama dari software visual Scratch?",
+                    options: [
+                        { text: "Membuat program dengan menyusun blok visual", type: "event", prefix: "🟡" },
+                        { text: "Mengetik kode pemrograman yang rumit", type: "motion", prefix: "🟦" },
+                        { text: "Mengedit foto dan video resolusi tinggi", type: "looks", prefix: "🟪" },
+                        { text: "Membuat dokumen teks halaman web", type: "control", prefix: "🟧" }
+                    ],
+                    correct: 0,
+                    hint: "Scratch didesain agar kita tidak perlu mengetik sintaks teks, melainkan menempelkan blok warna-warni.",
+                    explanation: "Scratch adalah bahasa pemrograman visual yang memudahkan pemula belajar logika dengan cara menyusun blok-blok perintah."
+                },
+                {
+                    question: "Objek atau karakter utama yang dapat bergerak dan diberi perintah di Scratch disebut...",
+                    options: [
+                        { text: "Stage", type: "looks", prefix: "🟪" },
+                        { text: "Sprite", type: "motion", prefix: "🟦" },
+                        { text: "Script", type: "event", prefix: "🟡" },
+                        { text: "Backdrop", type: "sound", prefix: "🩷" }
+                    ],
+                    correct: 1,
+                    hint: "Contoh default karakter ini di Scratch adalah Kucing (Scratch Cat).",
+                    explanation: "Sprite adalah objek atau karakter di Scratch yang dapat kita atur tampilannya, posisinya, dan suaranya melalui skrip."
+                },
+                {
+                    question: "Area atau panggung latar tempat Sprite beraksi di Scratch dinamakan...",
+                    options: [
+                        { text: "Costume", type: "looks", prefix: "🟪" },
+                        { text: "Backpack", type: "control", prefix: "🟧" },
+                        { text: "Stage (Panggung)", type: "event", prefix: "🟡" },
+                        { text: "Palette", type: "sound", prefix: "🩷" }
+                    ],
+                    correct: 2,
+                    hint: "Istilah ini berarti panggung tempat pertunjukan berlangsung.",
+                    explanation: "Stage adalah area latar belakang di mana semua aksi Sprite ditampilkan."
+                },
+                {
+                    question: "Proses menjalankan perintah langkah demi langkah secara berurutan dalam program disebut...",
+                    options: [
+                        { text: "Sequence (Urutan)", type: "control", prefix: "🟧" },
+                        { text: "Loop (Perulangan)", type: "motion", prefix: "🟦" },
+                        { text: "Debugging", type: "looks", prefix: "🟪" },
+                        { text: "Variable", type: "sound", prefix: "🩷" }
+                    ],
+                    correct: 0,
+                    hint: "Artinya adalah urutan eksekusi instruksi dari atas ke bawah.",
+                    explanation: "Sequence adalah konsep dasar algoritma di mana komputer menjalankan instruksi satu per satu secara berurutan."
+                },
+                {
+                    question: "Proses mencari dan membetulkan kesalahan/bug pada program Scratch disebut...",
+                    options: [
+                        { text: "Programming", type: "motion", prefix: "🟦" },
+                        { text: "Debugging", type: "event", prefix: "🟡" },
+                        { text: "Compiling", type: "looks", prefix: "🟪" },
+                        { text: "Animating", type: "sound", prefix: "🩷" }
+                    ],
+                    correct: 1,
+                    hint: "Berasal dari kata 'bug' (serangga/kesalahan).",
+                    explanation: "Debugging adalah proses mengidentifikasi dan memperbaiki kesalahan (bug) pada skrip agar program berjalan benar."
+                }
+            ],
+            1: [ // Area 2: Event Village
+                {
+                    question: "Blok apa yang digunakan untuk memulai program saat bendera hijau diklik?",
+                    options: [
+                        { text: "when green flag clicked", type: "event", prefix: "🟡" },
+                        { text: "move 10 steps", type: "motion", prefix: "🟦" },
+                        { text: "say Hello!", type: "looks", prefix: "🟪" },
+                        { text: "repeat 10", type: "control", prefix: "🟧" }
+                    ],
+                    correct: 0,
+                    hint: "Cari blok berwarna kuning bertuliskan bendera hijau.",
+                    explanation: "Blok 'when green flag clicked' dari kategori Events digunakan sebagai pemicu awal utama jalannya program."
+                },
+                {
+                    question: "Jika ingin program berjalan ketika tombol Spasi di keyboard ditekan, blok yang tepat adalah...",
+                    options: [
+                        { text: "when space key pressed", type: "event", prefix: "🟡" },
+                        { text: "when sprite clicked", type: "event", prefix: "🟡" },
+                        { text: "wait 1 seconds", type: "control", prefix: "🟧" },
+                        { text: "change x by 10", type: "motion", prefix: "🟦" }
+                    ],
+                    correct: 0,
+                    hint: "Kategori Events memiliki blok khusus deteksi penekanan tombol keyboard.",
+                    explanation: "Blok 'when [key] pressed' merespons masukan dari tombol keyboard yang dipilih pemain."
+                },
+                {
+                    question: "Warna khas dari kelompok blok Events di Scratch adalah...",
+                    options: [
+                        { text: "Biru Tua", type: "motion", prefix: "🟦" },
+                        { text: "Kuning / Emas", type: "event", prefix: "🟡" },
+                        { text: "Ungu", type: "looks", prefix: "🟪" },
+                        { text: "Oranye", type: "control", prefix: "🟧" }
+                    ],
+                    correct: 1,
+                    hint: "Warna seperti sinar matahari atau bendera di game ini.",
+                    explanation: "Kategori blok Events ditandai dengan warna Kuning terang."
+                },
+                {
+                    question: "Blok 'when this sprite clicked' akan menjalankan skrip ketika...",
+                    options: [
+                        { text: "Bendera hijau ditekan", type: "event", prefix: "🟡" },
+                        { text: "Sprite tersebut diklik oleh mouse", type: "event", prefix: "🟡" },
+                        { text: "Tombol enter ditekan", type: "control", prefix: "🟧" },
+                        { text: "Latar panggung berganti", type: "looks", prefix: "🟪" }
+                    ],
+                    correct: 1,
+                    hint: "Perhatikan kata 'this sprite clicked'.",
+                    explanation: "Blok ini aktif saat pemain mengeklik langsung gambar Sprite tersebut di Stage."
+                },
+                {
+                    question: "Mengapa blok Events selalu berada di paling atas suatu tumpukan skrip?",
+                    options: [
+                        { text: "Karena warnanya paling terang", type: "looks", prefix: "🟪" },
+                        { text: "Karena berfungsi sebagai pemicu awal (starter)", type: "event", prefix: "🟡" },
+                        { text: "Karena tidak bisa disambungkan dengan blok lain", type: "control", prefix: "🟧" },
+                        { text: "Karena hanya boleh digunakan satu kali", type: "sound", prefix: "🩷" }
+                    ],
+                    correct: 1,
+                    hint: "Setiap peristiwa butuh pemicu agar aksinya dimulai.",
+                    explanation: "Blok Events berbentuk topi (hat block) yang menandakan awal dari sebuah rangkaian perintah."
+                }
+            ],
+            2: [ // Area 3: Motion Mountain
+                {
+                    question: "Blok apa yang digunakan untuk membuat Sprite maju sejauh beberapa langkah?",
+                    options: [
+                        { text: "move 10 steps", type: "motion", prefix: "🟦" },
+                        { text: "turn right 15 degrees", type: "motion", prefix: "🟦" },
+                        { text: "go to x: 0 y: 0", type: "motion", prefix: "🟦" },
+                        { text: "glide 1 secs to random position", type: "motion", prefix: "🟦" }
+                    ],
+                    correct: 0,
+                    hint: "Blok paling dasar di kategori Motion untuk menggerakkan sprite ke depan.",
+                    explanation: "Blok 'move [10] steps' menggerakkan sprite maju sesuai arah hadapnya saat itu."
+                },
+                {
+                    question: "Koordinat pusat (tengah-tengah) dari Stage di Scratch adalah...",
+                    options: [
+                        { text: "x: 100, y: 100", type: "motion", prefix: "🟦" },
+                        { text: "x: 0, y: 0", type: "motion", prefix: "🟦" },
+                        { text: "x: 240, y: 180", type: "motion", prefix: "🟦" },
+                        { text: "x: -240, y: -180", type: "motion", prefix: "🟦" }
+                    ],
+                    correct: 1,
+                    hint: "Sumbu X dan Y titik netral berada di angka nol.",
+                    explanation: "Titik tengah Stage Scratch adalah koordinat x: 0 dan y: 0."
+                },
+                {
+                    question: "Sumbu koordinat yang mengatur posisi naik dan turun (vertikal) Sprite adalah...",
+                    options: [
+                        { text: "Sumbu X", type: "motion", prefix: "🟦" },
+                        { text: "Sumbu Y", type: "motion", prefix: "🟦" },
+                        { text: "Sumbu Z", type: "motion", prefix: "🟦" },
+                        { text: "Sumbu Direction", type: "event", prefix: "🟡" }
+                    ],
+                    correct: 1,
+                    hint: "Sumbu X horizontal (kiri-kanan), sumbu tegak adalah Y.",
+                    explanation: "Sumbu Y mengontrol gerakan vertikal (ke atas positif, ke bawah negatif)."
+                },
+                {
+                    question: "Blok 'point in direction 90' membuat Sprite menghadap ke arah...",
+                    options: [
+                        { text: "Atas (0°)", type: "motion", prefix: "🟦" },
+                        { text: "Kanan (90°)", type: "motion", prefix: "🟦" },
+                        { text: "Bawah (180°)", type: "motion", prefix: "🟦" },
+                        { text: "Kiri (-90°)", type: "motion", prefix: "🟦" }
+                    ],
+                    correct: 1,
+                    hint: "Sudut standar 90 derajat di Scratch menghadap ke kanan layar.",
+                    explanation: "Di Scratch, arah 90° adalah menghadap ke kanan, 0° ke atas, 180° ke bawah, dan -90° ke kiri."
+                },
+                {
+                    question: "Agar Sprite tidak membalik tubuhnya secara terbalik saat menabrak dinding, kita gunakan...",
+                    options: [
+                        { text: "set rotation style [left-right]", type: "motion", prefix: "🟦" },
+                        { text: "if on edge, bounce", type: "motion", prefix: "🟦" },
+                        { text: "change y by 10", type: "motion", prefix: "🟦" },
+                        { text: "turn 180 degrees", type: "motion", prefix: "🟦" }
+                    ],
+                    correct: 0,
+                    hint: "Gunakan pengatur gaya rotasi hanya kiri dan kanan.",
+                    explanation: "'set rotation style left-right' memastikan sprite hanya menghadap kiri atau kanan tanpa berputar terbalik."
+                }
+            ],
+            3: [ // Area 4: Looks Valley
+                {
+                    question: "Blok yang digunakan agar Sprite menampilkan percakapan teks di layar adalah...",
+                    options: [
+                        { text: "say [Hello!] for 2 seconds", type: "looks", prefix: "🟪" },
+                        { text: "play sound [Meow]", type: "sound", prefix: "🩷" },
+                        { text: "move 10 steps", type: "motion", prefix: "🟦" },
+                        { text: "think [Hmm...]", type: "looks", prefix: "🟪" }
+                    ],
+                    correct: 0,
+                    hint: "Cari blok berbica/mengatakan kata dalam kategori Looks.",
+                    explanation: "Blok 'say [...] for [...] secs' menampilkan balon ucapan di dekat Sprite selama durasi tertentu."
+                },
+                {
+                    question: "Kumpulan tampilan/pakaian yang berbeda dari satu Sprite dinamakan...",
+                    options: [
+                        { text: "Stage", type: "looks", prefix: "🟪" },
+                        { text: "Costumes (Kostum)", type: "looks", prefix: "🟪" },
+                        { text: "Backdrops", type: "looks", prefix: "🟪" },
+                        { text: "Sounds", type: "sound", prefix: "🩷" }
+                    ],
+                    correct: 1,
+                    hint: "Pakaian atau pose karakter dalam Scratch disebut kostum.",
+                    explanation: "Costumes adalah variasi gambar/pose yang dimiliki oleh satu Sprite untuk membuat animasi gerakan."
+                },
+                {
+                    question: "Untuk berganti ke kostum berikutnya secara otomatis dalam animasi, gunakan blok...",
+                    options: [
+                        { text: "next costume", type: "looks", prefix: "🟪" },
+                        { text: "switch costume to [costume1]", type: "looks", prefix: "🟪" },
+                        { text: "change size by 10", type: "looks", prefix: "🟪" },
+                        { text: "show", type: "looks", prefix: "🟪" }
+                    ],
+                    correct: 0,
+                    hint: "Kata 'next' berarti berikutnya.",
+                    explanation: "Blok 'next costume' langsung memindahkan tampilan sprite ke kostum urutan berikutnya."
+                },
+                {
+                    question: "Jika Sprite menghilang di panggung, blok apa yang dipakai untuk memunculkannya kembali?",
+                    options: [
+                        { text: "hide", type: "looks", prefix: "🟪" },
+                        { text: "show", type: "looks", prefix: "🟪" },
+                        { text: "clear graphic effects", type: "looks", prefix: "🟪" },
+                        { text: "set size to 100%", type: "looks", prefix: "🟪" }
+                    ],
+                    correct: 1,
+                    hint: "Kata bahasa Inggris untuk menampilkan/memperlihatkan.",
+                    explanation: "Blok 'show' membuat Sprite yang sebelumnya tersembunyi menjadi kelihatan kembali di Stage."
+                },
+                {
+                    question: "Kategori blok Looks di Scratch memiliki ciri khas warna...",
+                    options: [
+                        { text: "Kuning", type: "event", prefix: "🟡" },
+                        { text: "Ungu", type: "looks", prefix: "🟪" },
+                        { text: "Biru Muda", type: "motion", prefix: "🟦" },
+                        { text: "Merah Muda", type: "sound", prefix: "🩷" }
+                    ],
+                    correct: 1,
+                    hint: "Warna yang membalut blok-blok Looks di Scratch.",
+                    explanation: "Kategori Looks diwakili warna Ungu (Purple)."
+                }
+            ],
+            4: [ // Area 5: Sound Lake
+                {
+                    question: "Kategori blok yang digunakan untuk memutar musik atau efek suara adalah...",
+                    options: [
+                        { text: "Motion", type: "motion", prefix: "🟦" },
+                        { text: "Sound", type: "sound", prefix: "🩷" },
+                        { text: "Sensing", type: "looks", prefix: "🟪" },
+                        { text: "Control", type: "control", prefix: "🟧" }
+                    ],
+                    correct: 1,
+                    hint: "Kategori ini memiliki simbol pengeras suara.",
+                    explanation: "Kategori Sound digunakan untuk mengatur audio, nada, dan volume suara Sprite."
+                },
+                {
+                    question: "Perbedaan utama antara 'play sound [meow] until done' dengan 'start sound [meow]' adalah...",
+                    options: [
+                        { text: "'until done' menunggu suara selesai sebelum lanjut ke perintah berikutnya", type: "sound", prefix: "🩷" },
+                        { text: "'start sound' memutar suara dengan lebih keras", type: "sound", prefix: "🩷" },
+                        { text: "Tidak ada perbedaan sama sekali", type: "control", prefix: "🟧" },
+                        { text: "'until done' hanya bisa dipakai satu kali saja", type: "looks", prefix: "🟪" }
+                    ],
+                    correct: 0,
+                    hint: "Perhatikan frasa 'until done' yang artinya 'sampai selesai'.",
+                    explanation: "'play sound until done' menahan jalannya perintah berikutnya hingga file suara selesai dimainkan."
+                },
+                {
+                    question: "Untuk menghentikan semua suara yang sedang memutar di Scratch, kita memakai blok...",
+                    options: [
+                        { text: "stop all sounds", type: "sound", prefix: "🩷" },
+                        { text: "change volume by -10", type: "sound", prefix: "🩷" },
+                        { text: "clear sound effects", type: "sound", prefix: "🩷" },
+                        { text: "set volume to 0%", type: "sound", prefix: "🩷" }
+                    ],
+                    correct: 0,
+                    hint: "Blok 'stop all sounds' dengan cepat mematikan audio.",
+                    explanation: "Blok 'stop all sounds' langsung mematikan seluruh audio aktif di program."
+                },
+                {
+                    question: "Warna kategori blok Sound di Scratch adalah...",
+                    options: [
+                        { text: "Merah Muda / Magenta (Pink)", type: "sound", prefix: "🩷" },
+                        { text: "Hijau", type: "event", prefix: "🟡" },
+                        { text: "Oranye", type: "control", prefix: "🟧" },
+                        { text: "Cokelat", type: "looks", prefix: "🟪" }
+                    ],
+                    correct: 0,
+                    hint: "Warna khas yang manis dan cerah untuk audio.",
+                    explanation: "Kategori Sound di Scratch berwarna Pink / Merah Muda."
+                },
+                {
+                    question: "Selain memutar file audio, fitur kelompok blok Sound juga bisa mengatur...",
+                    options: [
+                        { text: "Volume (Kekerasan Suara)", type: "sound", prefix: "🩷" },
+                        { text: "Ukuran tubuh Sprite", type: "looks", prefix: "🟪" },
+                        { text: "Kecepatan jalan Sprite", type: "motion", prefix: "🟦" },
+                        { text: "Warna latar belakang", type: "looks", prefix: "🟪" }
+                    ],
+                    correct: 0,
+                    hint: "Diukur dalam satuan persentase volume audio.",
+                    explanation: "Blok Sound menyertakan pengatur tingkat kekerasan suara (volume)."
+                }
+            ],
+            5: [ // Area 6: Loop Factory
+                {
+                    question: "Jika ingin mengulang suatu instruksi sebanyak 5 kali, blok yang paling tepat adalah...",
+                    options: [
+                        { text: "repeat 5", type: "control", prefix: "🟧" },
+                        { text: "forever", type: "control", prefix: "🟧" },
+                        { text: "if then", type: "control", prefix: "🟧" },
+                        { text: "wait 5 seconds", type: "control", prefix: "🟧" }
+                    ],
+                    correct: 0,
+                    hint: "Gunakan perulangan terhitung (repeat [jumlah]).",
+                    explanation: "Blok 'repeat [count]' mengulang blok di dalamnya sebanyak angka yang ditentukan."
+                },
+                {
+                    question: "Blok perulangan yang akan menjalankan perintah di dalamnya terus-menerus tanpa henti adalah...",
+                    options: [
+                        { text: "repeat 10", type: "control", prefix: "🟧" },
+                        { text: "forever", type: "control", prefix: "🟧" },
+                        { text: "repeat until", type: "control", prefix: "🟧" },
+                        { text: "wait until", type: "control", prefix: "🟧" }
+                    ],
+                    correct: 1,
+                    hint: "'Forever' berarti selamanya.",
+                    explanation: "Blok 'forever' melakukan perulangan tanpa batas selama program aktif."
+                },
+                {
+                    question: "Blok 'wait 1 seconds' berfungsi untuk...",
+                    options: [
+                        { text: "Menghentikan program selamanya", type: "control", prefix: "🟧" },
+                        { text: "Memberikan jeda penundaan waktu sebelum lanjut", type: "control", prefix: "🟧" },
+                        { text: "Mengulang perintah 1 kali", type: "control", prefix: "🟧" },
+                        { text: "Membuat sprite berjalan lambat", type: "motion", prefix: "🟦" }
+                    ],
+                    correct: 1,
+                    hint: "Wait artinya menunggu.",
+                    explanation: "Blok 'wait' memberi jeda waktu penundaan dalam detik sebelum baris berikutnya dieksekusi."
+                },
+                {
+                    question: "Blok perulangan (repeat & forever) termasuk ke dalam kategori...",
+                    options: [
+                        { text: "Control", type: "control", prefix: "🟧" },
+                        { text: "Sensing", type: "looks", prefix: "🟪" },
+                        { text: "Motion", type: "motion", prefix: "🟦" },
+                        { text: "Events", type: "event", prefix: "🟡" }
+                    ],
+                    correct: 0,
+                    hint: "Kategori pengontrol jalannya alur skrip berwarna oranye.",
+                    explanation: "Kategori Control (warna Oranye) berisi pengatur alur program seperti loop dan percabangan."
+                },
+                {
+                    question: "Apa akibatnya jika kita lupa memberikan blok perulangan pada animasi berjalan?",
+                    options: [
+                        { text: "Sprite hanya melangkah 1 kali lalu berhenti", type: "motion", prefix: "🟦" },
+                        { text: "Program akan error crash", type: "control", prefix: "🟧" },
+                        { text: "Sprite bergerak terlalu cepat", type: "motion", prefix: "🟦" },
+                        { text: "Suara akan memutar otomatis", type: "sound", prefix: "🩷" }
+                    ],
+                    correct: 0,
+                    hint: "Tanpa loop, perintah 'next costume' dan 'move' hanya dieksekusi sekali.",
+                    explanation: "Tanpa perulangan, animasi hanya terjadi sekali saat program diklik lalu langsung selesai."
+                }
+            ],
+            6: [ // Area 7: Logic Cave
+                {
+                    question: "Blok percabangan yang dipakai untuk memeriksa apakah suatu kondisi terpenuhi adalah...",
+                    options: [
+                        { text: "if < kondisi > then", type: "control", prefix: "🟧" },
+                        { text: "repeat 10", type: "control", prefix: "🟧" },
+                        { text: "forever", type: "control", prefix: "🟧" },
+                        { text: "stop all", type: "control", prefix: "🟧" }
+                    ],
+                    correct: 0,
+                    hint: "Kata logika 'jika... maka...'.",
+                    explanation: "Blok 'if...then' mengeksekusi perintah di dalamnya HANYA JIKA kondisi bernilai benar (True)."
+                },
+                {
+                    question: "Untuk mendeteksi apakah Sprite menyentuh warna tertentu atau objek lain, kita gunakan kelompok blok...",
+                    options: [
+                        { text: "Sensing (Merasakan)", type: "motion", prefix: "🟦" },
+                        { text: "Operators", type: "control", prefix: "🟧" },
+                        { text: "Variables", type: "event", prefix: "🟡" },
+                        { text: "Motion", type: "motion", prefix: "🟦" }
+                    ],
+                    correct: 0,
+                    hint: "Blok pemindai/panca indera di Scratch berwarna biru muda.",
+                    explanation: "Kelompok Sensing menyediakan blok kondisi seperti 'touching [mouse-pointer/sprite]?'."
+                },
+                {
+                    question: "Perbedaan 'if then' dengan 'if then else' adalah...",
+                    options: [
+                        { text: "'if then else' menyediakan alternatif perintah jika kondisi salah", type: "control", prefix: "🟧" },
+                        { text: "'if then' berjalan lebih cepat", type: "control", prefix: "🟧" },
+                        { text: "Keduanya sama persis tanpa beda", type: "control", prefix: "🟧" },
+                        { text: "'if then else' hanya bisa dipakai di Area Cave", type: "control", prefix: "🟧" }
+                    ],
+                    correct: 0,
+                    hint: "Bagian 'else' berarti 'jika tidak / jika kondisi salah'.",
+                    explanation: "'if...then...else' memberikan pilihan dua jalur aksi: satu untuk Benar, dan satu lagi jika Salah."
+                },
+                {
+                    question: "Blok pembanding matematis seperti lebih besar (>), lebih kecil (<), dan sama dengan (=) ada di kelompok...",
+                    options: [
+                        { text: "Operators", type: "control", prefix: "🟧" },
+                        { text: "Sensing", type: "looks", prefix: "🟪" },
+                        { text: "Variables", type: "event", prefix: "🟡" },
+                        { text: "Sound", type: "sound", prefix: "🩷" }
+                    ],
+                    correct: 0,
+                    hint: "Operator logika dan matematika di Scratch berwarna hijau muda.",
+                    explanation: "Kategori Operators menangani operasi matematika dan logika perbandingan."
+                },
+                {
+                    question: "Contoh penggunaan percabangan logika di dalam game adalah...",
+                    options: [
+                        { text: "Jika nyawa = 0 maka tampilkan Game Over", type: "control", prefix: "🟧" },
+                        { text: "Memutar musik secara terus-menerus", type: "sound", prefix: "🩷" },
+                        { text: "Memindahkan sprite ke koordinat 0,0", type: "motion", prefix: "🟦" },
+                        { text: "Mengganti kostum sprite ke baju biru", type: "looks", prefix: "🟪" }
+                    ],
+                    correct: 0,
+                    hint: "Mengecek syarat kondisi nyawa nol untuk memicu game over.",
+                    explanation: "Pengecekan 'jika nyawa = 0' adalah penerapan nyata logika kondisi percabangan."
+                }
+            ],
+            7: [ // Area 8: Digital Castle (Final Exam)
+                {
+                    question: "Apa urutan (sequence) yang benar untuk membuat animasi kura-kura berjalan perlahan?",
+                    options: [
+                        { text: "when green flag clicked -> repeat 10 [move 5 steps -> next costume -> wait 0.5 secs]", type: "control", prefix: "🟧" },
+                        { text: "move 5 steps -> forever -> when green flag clicked", type: "motion", prefix: "🟦" },
+                        { text: "stop all -> say Hello -> repeat 10", type: "looks", prefix: "🟪" },
+                        { text: "play sound -> hide -> move 10 steps", type: "sound", prefix: "🩷" }
+                    ],
+                    correct: 0,
+                    hint: "Setiap skrip harus diawali Events 'when green flag clicked'.",
+                    explanation: "Skrip selalu dimulai dengan blok Event, diikuti struktur perulangan dan gerakan berurutan."
+                },
+                {
+                    question: "Untuk menyimpan skor pemain yang bisa bertambah saat mendapat koin, kita membutuhkan...",
+                    options: [
+                        { text: "Variable (Variabel)", type: "control", prefix: "🟧" },
+                        { text: "Backdrop", type: "looks", prefix: "🟪" },
+                        { text: "Costume", type: "looks", prefix: "🟪" },
+                        { text: "Sound Effect", type: "sound", prefix: "🩷" }
+                    ],
+                    correct: 0,
+                    hint: "Wadah penyimpanan data/angka di pemrograman.",
+                    explanation: "Variable di Scratch dipakai untuk menyimpan data dinamis seperti Skor, Waktu, atau Nyawa."
+                },
+                {
+                    question: "Blok 'broadcast [pesan]' berguna untuk...",
+                    options: [
+                        { text: "Mengirim sinyal pesan rahasia antarkarakter/sprite di Scratch", type: "event", prefix: "🟡" },
+                        { text: "Menampilkan teks di panggung", type: "looks", prefix: "🟪" },
+                        { text: "Merekam suara guru", type: "sound", prefix: "🩷" },
+                        { text: "Menghapus sprite dari proyek", type: "control", prefix: "🟧" }
+                    ],
+                    correct: 0,
+                    hint: "Broadcast artinya memancarkan/mengirim sinyal pemicu.",
+                    explanation: "Broadcast memungkinkan satu Sprite mengirim sinyal komunikasi agar Sprite lain menjalankan skrip merespons sinyal tersebut."
+                },
+                {
+                    question: "Manakah pasangan warna kategori Scratch yang BENAR?",
+                    options: [
+                        { text: "Events = Kuning, Motion = Biru, Looks = Ungu, Control = Oranye", type: "event", prefix: "🟡" },
+                        { text: "Events = Merah, Motion = Hijau, Looks = Kuning, Control = Hitam", type: "motion", prefix: "🟦" },
+                        { text: "Events = Biru, Motion = Ungu, Looks = Oranye, Control = Pink", type: "looks", prefix: "🟪" },
+                        { text: "Semua blok di Scratch memiliki warna yang sama", type: "control", prefix: "🟧" }
+                    ],
+                    correct: 0,
+                    hint: "Ingat kembali warna-warna blok sepanjang petualangan ini.",
+                    explanation: "Events kuning, Motion biru, Looks ungu, dan Control oranye merupakan standar Scratch."
+                },
+                {
+                    question: "Apa tujuan utama membagi kode menjadi langkah-langkah kecil yang teratur (Algoritma)?",
+                    options: [
+                        { text: "Memudahkan komputer memahami dan mengeksekusi perintah tanpa error", type: "control", prefix: "🟧" },
+                        { text: "Agar ukuran file Scratch menjadi sangat besar", type: "looks", prefix: "🟪" },
+                        { text: "Agar warna blok berubah sendiri secara otomatis", type: "event", prefix: "🟡" },
+                        { text: "Supaya game berjalan tanpa perlu bendera hijau", type: "sound", prefix: "🩷" }
+                    ],
+                    correct: 0,
+                    hint: "Algoritma membantu penyelesaian masalah secara sistematis.",
+                    explanation: "Algoritma yang rinci dan terstruktur memastikan program berjalan lancar sesuai logika yang diinginkan."
+                }
+            ]
+        };
+
+        /* ==========================================================================
+           2. WEB AUDIO SYNTHESIZER ENGINE (SFX & BGM)
+           ========================================================================== */
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playTone(freq, type, duration, delay = 0) {
+            if (!GAME_STATE.audioEnabled) return;
+            initAudio();
+            setTimeout(() => {
+                try {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + duration);
+                } catch(e) {}
+            }, delay);
+        }
+
+        function playSFX(name) {
+            if (!GAME_STATE.audioEnabled) return;
+            if (name === 'correct') {
+                playTone(523.25, 'triangle', 0.15, 0);   // C5
+                playTone(659.25, 'triangle', 0.15, 100); // E5
+                playTone(783.99, 'triangle', 0.25, 200); // G5
+                playTone(1046.50, 'triangle', 0.4, 300); // C6
+            } else if (name === 'wrong') {
+                playTone(300, 'sawtooth', 0.2, 0);
+                playTone(220, 'sawtooth', 0.3, 150);
+            } else if (name === 'click') {
+                playTone(800, 'sine', 0.05, 0);
+            } else if (name === 'jump') {
+                playTone(400, 'sine', 0.1, 0);
+                playTone(600, 'sine', 0.15, 50);
+            } else if (name === 'fanfare') {
+                playTone(523.25, 'square', 0.2, 0);
+                playTone(659.25, 'square', 0.2, 150);
+                playTone(783.99, 'square', 0.2, 300);
+                playTone(1046.50, 'square', 0.6, 450);
+            }
+        }
+
+        function toggleAudio() {
+            GAME_STATE.audioEnabled = !GAME_STATE.audioEnabled;
+            const icon = document.getElementById('sound-icon');
+            if (GAME_STATE.audioEnabled) {
+                icon.className = "fa-solid fa-volume-high";
+                playSFX('click');
+            } else {
+                icon.className = "fa-solid fa-volume-xmark text-slate-500";
+            }
+        }
+
+        /* ==========================================================================
+           3. THREE.JS 3D SCENE & DISNEY PIXAR ROBO CHARACTER GENERATION
+           ========================================================================== */
+        let scene, camera, renderer;
+        let roboGroup, headMesh, eyeLeft, eyeRight, armLeft, armRight, legLeft, legRight;
+        let environmentGroup, currentGateMesh;
+        let animClock = new THREE.Clock();
+
+        function init3DScene() {
+            const container = document.getElementById('canvas-container');
+            
+            // Scene Setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87ceeb); // Pixar Sky Blue
+            scene.fog = new THREE.FogExp2(0x87ceeb, 0.015);
+
+            // Camera Setup
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 4, 12);
+
+            // Renderer Setup
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            // Pixar Warm Soft Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(ambientLight);
+
+            const sunLight = new THREE.DirectionalLight(0xfff5ea, 1.2);
+            sunLight.position.set(20, 40, 20);
+            sunLight.castShadow = true;
+            sunLight.shadow.mapSize.width = 1024;
+            sunLight.shadow.mapSize.height = 1024;
+            sunLight.shadow.camera.near = 0.5;
+            sunLight.shadow.camera.far = 100;
+            scene.add(sunLight);
+
+            const fillLight = new THREE.DirectionalLight(0xb0e0e6, 0.4);
+            fillLight.position.set(-20, 20, -20);
+            scene.add(fillLight);
+
+            // Environment & Path Group
+            environmentGroup = new THREE.Group();
+            scene.add(environmentGroup);
+
+            // Build ROBO Pixar Character
+            createRoboCharacter();
+
+            // Build Initial World Area Environment
+            buildEnvironmentForArea(0);
+
+            // Handle Resize
+            window.addEventListener('resize', onWindowResize);
+
+            // Start Render Loop
+            animate3D();
+        }
+
+        function createRoboCharacter() {
+            roboGroup = new THREE.Group();
+
+            // Materials
+            const whiteBodyMat = new THREE.MeshStandardMaterial({
+                color: 0xf8fafc,
+                roughness: 0.2,
+                metalness: 0.1
+            });
+
+            const blueAccentMat = new THREE.MeshStandardMaterial({
+                color: 0x0284c7,
+                roughness: 0.3,
+                metalness: 0.2
+            });
+
+            const eyeGlowMat = new THREE.MeshBasicMaterial({
+                color: 0x38bdf8
+            });
+
+            const darkVisorMat = new THREE.MeshStandardMaterial({
+                color: 0x0f172a,
+                roughness: 0.1
+            });
+
+            // Torso / Body (Rounded Cylinder)
+            const bodyGeo = new THREE.CylinderGeometry(0.7, 0.6, 1.3, 32);
+            const bodyMesh = new THREE.Mesh(bodyGeo, whiteBodyMat);
+            bodyMesh.position.y = 1.1;
+            bodyMesh.castShadow = true;
+            roboGroup.add(bodyMesh);
+
+            // Chest Screen / Core Gem
+            const chestGeo = new THREE.SphereGeometry(0.25, 16, 16);
+            const chestMesh = new THREE.Mesh(chestGeo, blueAccentMat);
+            chestMesh.position.set(0, 1.2, 0.6);
+            chestMesh.scale.set(1, 1, 0.4);
+            roboGroup.add(chestMesh);
+
+            // Head Group
+            headMesh = new THREE.Group();
+            headMesh.position.y = 2.1;
+
+            // Head Shell
+            const headGeo = new THREE.SphereGeometry(0.85, 32, 32);
+            headGeo.scale(1.1, 0.9, 1.0);
+            const headShell = new THREE.Mesh(headGeo, whiteBodyMat);
+            headShell.castShadow = true;
+            headMesh.add(headShell);
+
+            // Visor Glass
+            const visorGeo = new THREE.SphereGeometry(0.72, 32, 16);
+            visorGeo.scale(0.9, 0.55, 0.5);
+            const visorMesh = new THREE.Mesh(visorGeo, darkVisorMat);
+            visorMesh.position.set(0, 0.05, 0.45);
+            headMesh.add(visorMesh);
+
+            // Big Pixar Expressive Eyes
+            const eyeGeo = new THREE.SphereGeometry(0.18, 16, 16);
+            eyeLeft = new THREE.Mesh(eyeGeo, eyeGlowMat);
+            eyeLeft.position.set(-0.25, 0.08, 0.8);
+            headMesh.add(eyeLeft);
+
+            eyeRight = new THREE.Mesh(eyeGeo, eyeGlowMat);
+            eyeRight.position.set(0.25, 0.08, 0.8);
+            headMesh.add(eyeRight);
+
+            // Antenna
+            const antBase = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.3), blueAccentMat);
+            antBase.position.set(0, 0.9, 0);
+            headMesh.add(antBase);
+
+            const antLight = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), eyeGlowMat);
+            antLight.position.set(0, 1.1, 0);
+            headMesh.add(antLight);
+
+            roboGroup.add(headMesh);
+
+            // Arms
+            const armGeo = new THREE.CylinderGeometry(0.15, 0.12, 0.7);
+            armLeft = new THREE.Mesh(armGeo, whiteBodyMat);
+            armLeft.position.set(-0.85, 1.1, 0);
+            armLeft.geometry.translate(0, -0.3, 0);
+            roboGroup.add(armLeft);
+
+            armRight = new THREE.Mesh(armGeo, whiteBodyMat);
+            armRight.position.set(0.85, 1.1, 0);
+            armRight.geometry.translate(0, -0.3, 0);
+            roboGroup.add(armRight);
+
+            // Legs
+            const legGeo = new THREE.CylinderGeometry(0.18, 0.22, 0.5);
+            legLeft = new THREE.Mesh(legGeo, blueAccentMat);
+            legLeft.position.set(-0.35, 0.25, 0);
+            roboGroup.add(legLeft);
+
+            legRight = new THREE.Mesh(legGeo, blueAccentMat);
+            legRight.position.set(0.35, 0.25, 0);
+            roboGroup.add(legRight);
+
+            // Base position
+            roboGroup.position.set(0, 0, 0);
+            scene.add(roboGroup);
+        }
+
+        function buildEnvironmentForArea(areaIndex) {
+            // Clear previous decor
+            while (environmentGroup.children.length > 0) {
+                const obj = environmentGroup.children[0];
+                environmentGroup.remove(obj);
+            }
+
+            const areaData = AREAS_DATA[areaIndex];
+            scene.background.setHex(areaData.skyHex);
+            scene.fog.color.setHex(areaData.skyHex);
+
+            // Terrain Path
+            const groundGeo = new THREE.PlaneGeometry(100, 100);
+            const groundMat = new THREE.MeshStandardMaterial({
+                color: areaData.bgHex,
+                roughness: 0.8
+            });
+            const ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            environmentGroup.add(ground);
+
+            // Main Cobblestone Path
+            const pathGeo = new THREE.PlaneGeometry(4, 80);
+            const pathMat = new THREE.MeshStandardMaterial({
+                color: 0xe2e8f0,
+                roughness: 0.6
+            });
+            const path = new THREE.Mesh(pathGeo, pathMat);
+            path.rotation.x = -Math.PI / 2;
+            path.position.set(0, 0.02, -20);
+            path.receiveShadow = true;
+            environmentGroup.add(path);
+
+            // Biome Specific Props Generator
+            for (let i = -35; i < 20; i += 6) {
+                if (Math.abs(i - (-15)) < 4) continue; // Leave room for gate
+
+                // Side props (Left & Right)
+                createBiomeProp(areaIndex, -5 - Math.random() * 6, i);
+                createBiomeProp(areaIndex, 5 + Math.random() * 6, i);
+            }
+
+            // Create Challenge Gate at z = -15
+            createChallengeGate(areaIndex);
+        }
+
+        function createBiomeProp(areaIndex, x, z) {
+            const propGroup = new THREE.Group();
+            propGroup.position.set(x, 0, z);
+
+            if (areaIndex === 0 || areaIndex === 1) { // Trees & Flowers
+                const trunkGeo = new THREE.CylinderGeometry(0.2, 0.35, 2);
+                const trunkMat = new THREE.MeshStandardMaterial({ color: 0x8b4513 });
+                const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+                trunk.position.y = 1;
+                trunk.castShadow = true;
+                propGroup.add(trunk);
+
+                const leavesGeo = new THREE.SphereGeometry(1.2, 16, 16);
+                const leavesMat = new THREE.MeshStandardMaterial({ color: 0x2e8b57, roughness: 0.5 });
+                const leaves = new THREE.Mesh(leavesGeo, leavesMat);
+                leaves.position.y = 2.4;
+                leaves.castShadow = true;
+                propGroup.add(leaves);
+            } else if (areaIndex === 2) { // Rocks & Snow Peaks
+                const rockGeo = new THREE.DodecahedronGeometry(1 + Math.random() * 0.8);
+                const rockMat = new THREE.MeshStandardMaterial({ color: 0x708090, roughness: 0.9 });
+                const rock = new THREE.Mesh(rockGeo, rockMat);
+                rock.position.y = 0.8;
+                rock.castShadow = true;
+                propGroup.add(rock);
+            } else if (areaIndex === 6) { // Glowing Logic Crystals
+                const crystalGeo = new THREE.OctahedronGeometry(1);
+                const crystalMat = new THREE.MeshStandardMaterial({
+                    color: Math.random() > 0.5 ? 0x00ffff : 0xff00ff,
+                    emissive: 0x330066,
+                    roughness: 0.2
+                });
+                const crystal = new THREE.Mesh(crystalGeo, crystalMat);
+                crystal.position.y = 1.2;
+                crystal.castShadow = true;
+                propGroup.add(crystal);
+            } else { // Generic Pixar Props / Pillars
+                const pillarGeo = new THREE.BoxGeometry(1, 3, 1);
+                const pillarMat = new THREE.MeshStandardMaterial({ color: 0xc0c0c0 });
+                const pillar = new THREE.Mesh(pillarGeo, pillarMat);
+                pillar.position.y = 1.5;
+                pillar.castShadow = true;
+                propGroup.add(pillar);
+            }
+
+            environmentGroup.add(propGroup);
+        }
+
+        function createChallengeGate(areaIndex) {
+            currentGateMesh = new THREE.Group();
+            currentGateMesh.position.set(0, 0, -12);
+
+            // Pillars
+            const pillarMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.3 });
+            const pLeft = new THREE.Mesh(new THREE.BoxGeometry(0.8, 4, 0.8), pillarMat);
+            pLeft.position.set(-2.5, 2, 0);
+            pLeft.castShadow = true;
+            currentGateMesh.add(pLeft);
+
+            const pRight = new THREE.Mesh(new THREE.BoxGeometry(0.8, 4, 0.8), pillarMat);
+            pRight.position.set(2.5, 2, 0);
+            pRight.castShadow = true;
+            currentGateMesh.add(pRight);
+
+            // Arch Top
+            const arch = new THREE.Mesh(new THREE.BoxGeometry(5.8, 0.8, 0.8), pillarMat);
+            arch.position.set(0, 4.2, 0);
+            arch.castShadow = true;
+            currentGateMesh.add(arch);
+
+            // Glowing Star Gem
+            const starGeo = new THREE.OctahedronGeometry(0.6);
+            const starMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, emissive: 0x0284c7 });
+            const star = new THREE.Mesh(starGeo, starMat);
+            star.position.set(0, 4.2, 0.5);
+            currentGateMesh.add(star);
+
+            environmentGroup.add(currentGateMesh);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        /* Animation Loop for ROBO & Camera */
+        function animate3D() {
+            requestAnimationFrame(animate3D);
+            const elapsed = animClock.getElapsedTime();
+
+            // ROBO Idle & Walk Animations
+            if (roboGroup) {
+                if (GAME_STATE.isMoving) {
+                    // Walking animation loop
+                    roboGroup.position.z -= 0.08;
+                    roboGroup.position.y = Math.abs(Math.sin(elapsed * 10)) * 0.15;
+                    
+                    armLeft.rotation.x = Math.sin(elapsed * 10) * 0.6;
+                    armRight.rotation.x = -Math.sin(elapsed * 10) * 0.6;
+                    legLeft.rotation.x = -Math.sin(elapsed * 10) * 0.6;
+                    legRight.rotation.x = Math.sin(elapsed * 10) * 0.6;
+
+                    // Stop when reaching gate at z = -10
+                    if (roboGroup.position.z <= -8.5) {
+                        GAME_STATE.isMoving = false;
+                        roboGroup.position.z = -8.5;
+                        openQuizModal();
+                    }
+                } else {
+                    // Subtle Idle animation
+                    roboGroup.position.y = Math.sin(elapsed * 2) * 0.05;
+                    headMesh.rotation.y = Math.sin(elapsed * 1.5) * 0.1;
+                    armLeft.rotation.x = THREE.MathUtils.lerp(armLeft.rotation.x, 0, 0.1);
+                    armRight.rotation.x = THREE.MathUtils.lerp(armRight.rotation.x, 0, 0.1);
+                    legLeft.rotation.x = 0;
+                    legRight.rotation.x = 0;
+                }
+            }
+
+            // Smooth Camera follow lerp
+            if (roboGroup) {
+                camera.position.x = THREE.MathUtils.lerp(camera.position.x, roboGroup.position.x, 0.05);
+                camera.position.z = THREE.MathUtils.lerp(camera.position.z, roboGroup.position.z + 8, 0.05);
+                camera.lookAt(roboGroup.position.x, roboGroup.position.y + 1.2, roboGroup.position.z);
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Trigger ROBO victory jump
+        function triggerRoboJump() {
+            playSFX('jump');
+            let jumpHeight = 0;
+            const startTime = Date.now();
+            const duration = 600;
+
+            function doJump() {
+                const now = Date.now();
+                const progress = (now - startTime) / duration;
+                if (progress < 1) {
+                    roboGroup.position.y = Math.sin(progress * Math.PI) * 1.5;
+                    roboGroup.rotation.y += 0.1;
+                    requestAnimationFrame(doJump);
+                } else {
+                    roboGroup.position.y = 0;
+                    roboGroup.rotation.y = 0;
+                }
+            }
+            doJump();
+        }
+
+        // Trigger ROBO confused shake
+        function triggerRoboConfused() {
+            playSFX('wrong');
+            const startTime = Date.now();
+            const duration = 500;
+
+            function doShake() {
+                const now = Date.now();
+                const progress = (now - startTime) / duration;
+                if (progress < 1) {
+                    headMesh.rotation.z = Math.sin(progress * Math.PI * 8) * 0.2;
+                    requestAnimationFrame(doShake);
+                } else {
+                    headMesh.rotation.z = 0;
+                }
+            }
+            doShake();
+        }
+
+        /* ==========================================================================
+           4. GAME LOGIC & HUD CONTROLLERS
+           ========================================================================== */
+        function startGame() {
+            const nameInput = document.getElementById('player-name-input').value.trim();
+            if (nameInput) {
+                GAME_STATE.playerName = nameInput;
+            }
+            playSFX('click');
+
+            document.getElementById('screen-start').classList.add('hidden');
+            document.getElementById('hud-layer').classList.remove('hidden');
+
+            init3DScene();
+            renderHUD();
+            showAreaIntro(0);
+        }
+
+        function renderHUD() {
+            document.getElementById('hud-score').innerText = GAME_STATE.score;
+            
+            // Render Hearts
+            const heartsContainer = document.getElementById('lives-container');
+            heartsContainer.innerHTML = '';
+            for (let i = 0; i < GAME_STATE.maxLives; i++) {
+                const heart = document.createElement('i');
+                if (i < GAME_STATE.lives) {
+                    heart.className = "fa-solid fa-heart text-red-500 text-xl drop-shadow";
+                } else {
+                    heart.className = "fa-regular fa-heart text-slate-500 text-xl";
+                }
+                heartsContainer.appendChild(heart);
+            }
+
+            // Render Area Title
+            const area = AREAS_DATA[GAME_STATE.currentAreaIndex];
+            document.getElementById('hud-area-title').innerText = `AREA ${area.id} — ${area.name}`;
+            document.getElementById('current-q-num').innerText = GAME_STATE.currentQuestionIndex + 1;
+
+            // Render Progress Tracker Nodes
+            const nodesContainer = document.getElementById('progress-nodes');
+            nodesContainer.innerHTML = '';
+            
+            AREAS_DATA.forEach((a, idx) => {
+                const node = document.createElement('div');
+                node.className = "flex flex-col items-center gap-1 relative z-10";
+                
+                let circleClass = "bg-slate-800 text-slate-400 border-2 border-slate-600";
+                if (idx < GAME_STATE.currentAreaIndex) {
+                    circleClass = "bg-emerald-500 text-white border-2 border-emerald-300 shadow-md"; // Completed
+                } else if (idx === GAME_STATE.currentAreaIndex) {
+                    circleClass = "bg-amber-400 text-slate-900 border-2 border-white font-bold ring-4 ring-amber-400/30 scale-110"; // Current
+                }
+
+                node.innerHTML = `
+                    <div class="w-7 h-7 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-xs sm:text-sm ${circleClass} transition-all">
+                        ${idx < GAME_STATE.currentAreaIndex ? '<i class="fa-solid fa-check"></i>' : a.icon}
+                    </div>
+                `;
+                nodesContainer.appendChild(node);
+            });
+
+            // Fill Progress Line
+            const fillPercent = (GAME_STATE.currentAreaIndex / (AREAS_DATA.length - 1)) * 100;
+            document.getElementById('progress-fill').style.width = `${fillPercent}%`;
+        }
+
+        function showAreaIntro(areaIndex) {
+            GAME_STATE.currentAreaIndex = areaIndex;
+            GAME_STATE.currentQuestionIndex = 0;
+            renderHUD();
+
+            const area = AREAS_DATA[areaIndex];
+            document.getElementById('area-intro-badge').innerText = area.icon;
+            document.getElementById('area-intro-title').innerText = `AREA ${area.id}: ${area.name}`;
+            document.getElementById('area-intro-topic').innerText = `Topik: ${area.topic}`;
+            document.getElementById('modal-area-intro').classList.remove('hidden');
+
+            // Reset ROBO position & environment
+            if (roboGroup) {
+                roboGroup.position.set(0, 0, 0);
+            }
+            buildEnvironmentForArea(areaIndex);
+        }
+
+        function closeAreaIntro() {
+            playSFX('click');
+            document.getElementById('modal-area-intro').classList.add('hidden');
+            // Start ROBO walking towards gate
+            GAME_STATE.isMoving = true;
+        }
+
+        function openQuizModal() {
+            const qData = QUESTIONS_DB[GAME_STATE.currentAreaIndex][GAME_STATE.currentQuestionIndex];
+            
+            document.getElementById('quiz-area-tag').innerText = AREAS_DATA[GAME_STATE.currentAreaIndex].name;
+            document.getElementById('quiz-step-num').innerText = GAME_STATE.currentQuestionIndex + 1;
+            document.getElementById('quiz-question-text').innerText = qData.question;
+            
+            // Hide hint & feedback
+            document.getElementById('hint-box').classList.add('hidden');
+            document.getElementById('feedback-banner').classList.add('hidden');
+            document.getElementById('btn-submit-answer').classList.remove('hidden');
+            document.getElementById('btn-next-question').classList.add('hidden');
+
+            GAME_STATE.selectedOptionIndex = null;
+
+            // Populate Options
+            const container = document.getElementById('quiz-options-container');
+            container.innerHTML = '';
+
+            qData.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.onclick = () => selectOption(idx);
+                btn.id = `opt-btn-${idx}`;
+                
+                // Color Class based on block type
+                let blockClass = "block-event";
+                if (opt.type === "motion") blockClass = "block-motion";
+                else if (opt.type === "looks") blockClass = "block-looks";
+                else if (opt.type === "sound") blockClass = "block-sound";
+                else if (opt.type === "control") blockClass = "block-control";
+
+                btn.className = `scratch-block ${blockClass} p-4 text-left font-bold text-sm md:text-base flex items-center gap-3 cursor-pointer w-full`;
+                btn.innerHTML = `
+                    <span class="w-7 h-7 rounded-lg bg-black/20 flex items-center justify-center text-xs shrink-0">${String.fromCharCode(65 + idx)}</span>
+                    <span class="mr-1">${opt.prefix}</span>
+                    <span class="leading-snug">${opt.text}</span>
+                `;
+                container.appendChild(btn);
+            });
+
+            document.getElementById('modal-quiz').classList.remove('hidden');
+        }
+
+        function selectOption(index) {
+            playSFX('click');
+            GAME_STATE.selectedOptionIndex = index;
+
+            // Highlight selected option
+            for (let i = 0; i < 4; i++) {
+                const btn = document.getElementById(`opt-btn-${i}`);
+                if (btn) {
+                    if (i === index) {
+                        btn.classList.add('ring-4', 'ring-amber-300', 'scale-[1.02]');
+                    } else {
+                        btn.classList.remove('ring-4', 'ring-amber-300', 'scale-[1.02]');
+                    }
+                }
+            }
+        }
+
+        function useHint() {
+            if (document.getElementById('hint-box').classList.contains('hidden')) {
+                playSFX('click');
+                const qData = QUESTIONS_DB[GAME_STATE.currentAreaIndex][GAME_STATE.currentQuestionIndex];
+                document.getElementById('hint-text').innerText = qData.hint;
+                document.getElementById('hint-box').classList.remove('hidden');
+                GAME_STATE.totalHintsUsed++;
+            }
+        }
+
+        function submitAnswer() {
+            if (GAME_STATE.selectedOptionIndex === null) return;
+
+            const qData = QUESTIONS_DB[GAME_STATE.currentAreaIndex][GAME_STATE.currentQuestionIndex];
+            const isCorrect = (GAME_STATE.selectedOptionIndex === qData.correct);
+
+            const feedbackBanner = document.getElementById('feedback-banner');
+            const feedbackIcon = document.getElementById('feedback-icon');
+            const feedbackTitle = document.getElementById('feedback-title');
+            const feedbackDesc = document.getElementById('feedback-desc');
+
+            feedbackBanner.classList.remove('hidden');
+
+            if (isCorrect) {
+                // Correct Answer
+                triggerRoboJump();
+                playSFX('correct');
+                
+                GAME_STATE.score += 100;
+                GAME_STATE.totalCorrectAnswers++;
+
+                feedbackBanner.className = "p-4 rounded-2xl border-2 mb-4 text-sm font-bold flex items-center gap-3 bg-emerald-100 border-emerald-300 text-emerald-900";
+                feedbackIcon.innerText = "🎉";
+                feedbackTitle.innerText = "HEBAT! JAWABANMU BENAR!";
+                feedbackDesc.innerText = qData.explanation;
+
+                document.getElementById('btn-submit-answer').classList.add('hidden');
+                document.getElementById('btn-next-question').classList.remove('hidden');
+
+            } else {
+                // Wrong Answer
+                triggerRoboConfused();
+                GAME_STATE.totalWrongAnswers++;
+                GAME_STATE.lives--;
+
+                renderHUD();
+
+                feedbackBanner.className = "p-4 rounded-2xl border-2 mb-4 text-sm font-bold flex items-center gap-3 bg-rose-100 border-rose-300 text-rose-900";
+                feedbackIcon.innerText = "😅";
+                feedbackTitle.innerText = "BELUM TEPAT! COBA LAGI";
+                feedbackDesc.innerText = "Perhatikan kembali fungsi blok Scratch ini. Jangan menyerah!";
+
+                if (GAME_STATE.lives <= 0) {
+                    // Game Over Trigger
+                    setTimeout(() => {
+                        document.getElementById('modal-quiz').classList.add('hidden');
+                        document.getElementById('modal-gameover').classList.remove('hidden');
+                    }, 1200);
+                }
+            }
+
+            renderHUD();
+        }
+
+        function nextQuestion() {
+            playSFX('click');
+            document.getElementById('modal-quiz').classList.add('hidden');
+
+            GAME_STATE.currentQuestionIndex++;
+
+            if (GAME_STATE.currentQuestionIndex < 5) {
+                // Next question in same area
+                GAME_STATE.isMoving = true;
+            } else {
+                // Area Completed!
+                playSFX('fanfare');
+                GAME_STATE.score += 200; // Completion Bonus
+                renderHUD();
+
+                if (GAME_STATE.currentAreaIndex < AREAS_DATA.length - 1) {
+                    // Move to Next Area
+                    showAreaIntro(GAME_STATE.currentAreaIndex + 1);
+                } else {
+                    // Final Victory!
+                    showVictoryScreen();
+                }
+            }
+        }
+
+        function retryCurrentArea() {
+            playSFX('click');
+            GAME_STATE.lives = GAME_STATE.maxLives;
+            document.getElementById('modal-gameover').classList.add('hidden');
+            showAreaIntro(GAME_STATE.currentAreaIndex);
+        }
+
+        function showVictoryScreen() {
+            playSFX('fanfare');
+            
+            // Trigger Pixar-style Confetti
+            if (typeof confetti === 'function') {
+                confetti({
+                    particleCount: 120,
+                    spread: 80,
+                    origin: { y: 0.6 }
+                });
+            }
+
+            document.getElementById('hud-layer').classList.add('hidden');
+            document.getElementById('screen-victory').classList.remove('hidden');
+
+            document.getElementById('victory-player-name').innerText = GAME_STATE.playerName;
+            document.getElementById('stat-score').innerText = GAME_STATE.score;
+            document.getElementById('stat-correct').innerText = GAME_STATE.totalCorrectAnswers;
+            document.getElementById('stat-wrong').innerText = GAME_STATE.totalWrongAnswers;
+            document.getElementById('stat-hints').innerText = GAME_STATE.totalHintsUsed;
+        }
+
+        function restartFullGame() {
+            playSFX('click');
+            GAME_STATE.currentAreaIndex = 0;
+            GAME_STATE.currentQuestionIndex = 0;
+            GAME_STATE.score = 0;
+            GAME_STATE.lives = 3;
+            GAME_STATE.totalCorrectAnswers = 0;
+            GAME_STATE.totalWrongAnswers = 0;
+            GAME_STATE.totalHintsUsed = 0;
+
+            document.getElementById('screen-victory').classList.add('hidden');
+            document.getElementById('screen-start').classList.remove('hidden');
+        }
+
+        // Initialize background on window load
+        window.onload = function() {
+            // Ready to play
+        };
+    </script>
+</body>
+</html>
